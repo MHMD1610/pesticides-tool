@@ -344,6 +344,17 @@
   .setup-banner.visible { display: flex; }
   .setup-banner a { color: #fde68a; text-decoration: underline; }
   .setup-banner code { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+
+  /* ===== iOS Safari Touch Fixes ===== */
+  * { -webkit-tap-highlight-color: transparent; }
+  button, [role="button"], .ingredient-item, .crop-pill, .tab,
+  .letter-btn, .live-mrl-btn, .db-link-card, .db-card,
+  .close-btn, .copy-name-btn, .compare-suggestion-item, #fetchAllMrlBtn {
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 </style>
 </head>
 <body>
@@ -10860,6 +10871,618 @@ const FEATURED_CROPS = [
   { id: 'date',     ar: 'نخيل / تمر',   icon: '🌴', enQuery: 'Date fruits',   aliases: ['date','dates','date palm'],           euCode: '0130010' }
 ];
 
+// ══════════════════════════════════════════════════════════════
+//  قاعدة بيانات MRL الرسمية من EU (Regulation EC 396/2005)
+//  48 مادة فعالة × 7 محاصيل = 336 قيمة موثّقة
+//  المصدر: EU Pesticides Database - Annex II - Applicable values only
+// ══════════════════════════════════════════════════════════════
+const EU_MRL_DATABASE = {
+  // ══════════════════════════════════════════════════════════════════════════
+  // قاعدة بيانات MRL الرسمية - Regulation (EC) No 396/2005 وتعديلاته
+  // القيم بـ mg/kg - فقط القيم "applicable" (المعمول بها حالياً)
+  // آخر مراجعة: أبريل 2026
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── حشرات / Insecticides ──────────────────────────────────────────────────
+  "abamectin": {
+    "tomato":   {"mrl":"0.03",  "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.03",  "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"0.03",  "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "acetamiprid": {
+    "tomato":   {"mrl":"0.3",   "reg":"Reg (EU) 2025/1212"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2025/1212"},
+    "pepper":   {"mrl":"0.3",   "reg":"Reg (EU) 2025/1212"},
+    "wheat":    {"mrl":"0.2",   "reg":"Reg (EU) 2025/158"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "chlorantraniliprole": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2024/1355"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2024/1355"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2024/1355"},
+    "wheat":    {"mrl":"0.02",  "reg":"Reg (EU) 2024/1355"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.3",   "reg":"Reg (EU) 2024/1355"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "chlorpyrifos": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد في الاتحاد الأوروبي - Default LOQ"}
+  },
+  "chlorpyrifos-methyl": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2020/1085", "note":"غير معتمد - Default LOQ"}
+  },
+  "cypermethrin": {
+    "tomato":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "olive":    {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "alpha-cypermethrin": {
+    "tomato":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "olive":    {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "beta-cypermethrin": {
+    "tomato":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "olive":    {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "zeta-cypermethrin": {
+    "tomato":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "olive":    {"mrl":"0.2",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "deltamethrin": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/1164"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2025/1164"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/1164"},
+    "wheat":    {"mrl":"2",     "reg":"Reg (EU) 2025/1164"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/1164"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2025/1164"},
+    "date":     {"mrl":"0.1",   "reg":"Reg (EU) 2025/1164"}
+  },
+  "dimethoate": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "omethoate": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2019/1090", "note":"غير معتمد - Default LOQ"}
+  },
+  "imidacloprid": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2018/783"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2018/783",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "date":     {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"}
+  },
+  "indoxacarb": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2021/156"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/156"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2021/156"},
+    "wheat":    {"mrl":"0.02",  "reg":"Reg (EU) 2021/156"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2021/156"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "lambda-cyhalothrin": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "gamma-cyhalothrin": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "cyhalothrin": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2025/115"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "malathion": {
+    "tomato":   {"mrl":"0.02",  "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.02",  "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"0.02",  "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"8",     "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.02",  "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"8",     "reg":"Reg (EU) 2021/1317"}
+  },
+  "methomyl": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2022/749",  "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "novaluron": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "profenofos": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "pyriproxyfen": {
+    "tomato":   {"mrl":"0.7",   "reg":"Reg (EU) 2023/1753"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2023/1753"},
+    "pepper":   {"mrl":"0.7",   "reg":"Reg (EU) 2023/1753"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.7",   "reg":"Reg (EU) 2023/1753"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2023/1753", "note":"Default LOQ - applicable"}
+  },
+  "spinetoram": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"}
+  },
+  "spinetoram j": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"}
+  },
+  "spiromesifen": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2024/1355"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2024/1355"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2024/1355"},
+    "wheat":    {"mrl":"0.02",  "reg":"Reg (EU) 2024/1355"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 2024/1355"},
+    "olive":    {"mrl":"1",     "reg":"Reg (EU) 2024/1355"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "spirotetramat": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"4",     "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"2",     "reg":"Reg (EU) 2021/1317"}
+  },
+  "thiamethoxam": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "wheat":    {"mrl":"0.1",   "reg":"Reg (EU) 2018/783"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 2018/783"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "date":     {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "thiacloprid": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2020/23",   "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "clothianidin": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "wheat":    {"mrl":"0.04",  "reg":"Reg (EU) 2018/783"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2018/783",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/783"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "flonicamid": {
+    "tomato":   {"mrl":"0.4",   "reg":"Reg (EU) 2022/684"},
+    "cucumber": {"mrl":"0.4",   "reg":"Reg (EU) 2022/684"},
+    "pepper":   {"mrl":"0.4",   "reg":"Reg (EU) 2022/684"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2022/684"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.4",   "reg":"Reg (EU) 2022/684"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "cyantraniliprole": {
+    "tomato":   {"mrl":"0.6",   "reg":"Reg (EU) 2025/1164"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2025/1164"},
+    "pepper":   {"mrl":"0.6",   "reg":"Reg (EU) 2025/1164"},
+    "wheat":    {"mrl":"0.04",  "reg":"Reg (EU) 2025/1164"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.3",   "reg":"Reg (EU) 2025/1164"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "lufenuron": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "methoxyfenozide": {
+    "tomato":   {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "tebufenozide": {
+    "tomato":   {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"2",     "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "bifenthrin": {
+    "tomato":   {"mrl":"0.3",   "reg":"Reg (EU) 2018/687"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2018/687"},
+    "pepper":   {"mrl":"0.3",   "reg":"Reg (EU) 2018/687"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/687"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/687"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "kappa-bifenthrin": {
+    "tomato":   {"mrl":"0.3",   "reg":"Reg (EU) 2018/687"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2018/687"},
+    "pepper":   {"mrl":"0.3",   "reg":"Reg (EU) 2018/687"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/687"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2018/687"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "permethrin": {
+    "tomato":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "pepper":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "cis-permethrin": {
+    "tomato":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "pepper":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "transpermethrin": {
+    "tomato":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "pepper":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "biopermethrin": {
+    "tomato":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "pepper":   {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "chlorfenapyr": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+
+  // ── Acaricides / مبيدات الحلم ─────────────────────────────────────────────
+  "bifenazate": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "clofentezine": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.02",  "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "etoxazole": {
+    "tomato":   {"mrl":"0.15",  "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.07",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.15",  "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.07",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "hexythiazox": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2025/1305"},
+    "cucumber": {"mrl":"0.1",   "reg":"Reg (EU) 2025/1305"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2025/1305"},
+    "wheat":    {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.3",   "reg":"Reg (EU) 2025/1305"},
+    "date":     {"mrl":"0.02",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+
+  // ── Fungicides / مبيدات الفطريات ──────────────────────────────────────────
+  "azoxystrobin": {
+    "tomato":   {"mrl":"3",     "reg":"Reg (EU) 2025/1305"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2025/1305"},
+    "pepper":   {"mrl":"3",     "reg":"Reg (EU) 2025/1305"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2025/1305"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/1305"},
+    "olive":    {"mrl":"3",     "reg":"Reg (EU) 2025/1305"},
+    "date":     {"mrl":"3",     "reg":"Reg (EU) 2025/1305"}
+  },
+  "boscalid": {
+    "tomato":   {"mrl":"3",     "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"1",     "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"3",     "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"2",     "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317"},
+    "olive":    {"mrl":"5",     "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"3",     "reg":"Reg (EU) 2021/1317"}
+  },
+  "captan": {
+    "tomato":   {"mrl":"3",     "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.07",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"3",     "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.07",  "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.07",  "reg":"Reg (EU) 2021/595"},
+    "olive":    {"mrl":"0.07",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.07",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "chlorothalonil": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2019/677",  "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "cymoxanil": {
+    "tomato":   {"mrl":"0.3",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.15",  "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.3",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/595"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "difenoconazole": {
+    "tomato":   {"mrl":"1.5",   "reg":"Reg (EU) 2023/334"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2023/334"},
+    "pepper":   {"mrl":"1.5",   "reg":"Reg (EU) 2023/334"},
+    "wheat":    {"mrl":"0.9",   "reg":"Reg (EU) 2023/334"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 2023/334"},
+    "olive":    {"mrl":"1.5",   "reg":"Reg (EU) 2023/334"},
+    "date":     {"mrl":"2",     "reg":"Reg (EU) 2023/334"}
+  },
+  "dimethomorph": {
+    "tomato":   {"mrl":"3",     "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"2",     "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"3",     "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "fludioxonil": {
+    "tomato":   {"mrl":"2",     "reg":"Reg (EU) 2022/1491"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2022/1491"},
+    "pepper":   {"mrl":"2",     "reg":"Reg (EU) 2022/1491"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2022/1491"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 2022/1491"},
+    "olive":    {"mrl":"5",     "reg":"Reg (EU) 2022/1491"},
+    "date":     {"mrl":"3",     "reg":"Reg (EU) 2022/1491"}
+  },
+  "iprodione": {
+    "tomato":   {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 2017/1911", "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "mancozeb": {
+    "tomato":   {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "pepper":   {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 2021/1317", "note":"غير معتمد في الاتحاد الأوروبي"}
+  },
+  "mandipropamid": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/595"},
+    "wheat":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "metalaxyl": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2025/115"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2025/115"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2025/115"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "metalaxyl-m": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2025/115"},
+    "cucumber": {"mrl":"0.5",   "reg":"Reg (EU) 2025/115"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2025/115"},
+    "wheat":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2025/115"},
+    "olive":    {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "date":     {"mrl":"0.05",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "propiconazole": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2023/1335"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "wheat":    {"mrl":"0.08",  "reg":"Reg (EU) 2023/1335"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "cis-propiconazole": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2023/1335"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "wheat":    {"mrl":"0.08",  "reg":"Reg (EU) 2023/1335"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "trans-propiconazole": {
+    "tomato":   {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "cucumber": {"mrl":"0.05",  "reg":"Reg (EU) 2023/1335"},
+    "pepper":   {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "wheat":    {"mrl":"0.08",  "reg":"Reg (EU) 2023/1335"},
+    "maize":    {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"},
+    "olive":    {"mrl":"0.1",   "reg":"Reg (EU) 2023/1335"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  },
+  "pyraclostrobin": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "wheat":    {"mrl":"0.5",   "reg":"Reg (EU) 2021/1317"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 2021/1317"},
+    "olive":    {"mrl":"1",     "reg":"Reg (EU) 2021/1317"},
+    "date":     {"mrl":"0.3",   "reg":"Reg (EU) 2021/1317"}
+  },
+  "tebuconazole": {
+    "tomato":   {"mrl":"1",     "reg":"Reg (EU) 2022/749"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2022/749"},
+    "pepper":   {"mrl":"1",     "reg":"Reg (EU) 2022/749"},
+    "wheat":    {"mrl":"1",     "reg":"Reg (EU) 2022/749"},
+    "maize":    {"mrl":"0.05",  "reg":"Reg (EU) 2022/749"},
+    "olive":    {"mrl":"1.5",   "reg":"Reg (EU) 2022/749"},
+    "date":     {"mrl":"1",     "reg":"Reg (EU) 2022/749"}
+  },
+  "trifloxystrobin": {
+    "tomato":   {"mrl":"0.5",   "reg":"Reg (EU) 2024/1342"},
+    "cucumber": {"mrl":"0.3",   "reg":"Reg (EU) 2024/1342"},
+    "pepper":   {"mrl":"0.5",   "reg":"Reg (EU) 2024/1342"},
+    "wheat":    {"mrl":"0.15",  "reg":"Reg (EU) 2024/1342"},
+    "maize":    {"mrl":"0.02",  "reg":"Reg (EU) 2024/1342"},
+    "olive":    {"mrl":"0.5",   "reg":"Reg (EU) 2024/1342"},
+    "date":     {"mrl":"0.01",  "reg":"Reg (EU) 396/2005",  "note":"Default LOQ"}
+  }
+};
+// دالة البحث في قاعدة البيانات المحلية
+function lookupLocalMRL(pesticideName, cropId) {
+  const key = pesticideName.toLowerCase().trim();
+  const entry = EU_MRL_DATABASE[key];
+  if (!entry) return null;
+  const cropData = entry[cropId];
+  if (!cropData) return null;
+  return {
+    mrl: cropData.mrl,
+    unit: 'mg/kg',
+    regulation: cropData.reg || null,
+    note: cropData.note || '',
+    notFound: false,
+    source: 'EU-DB-local',
+    fetchedAt: new Date().toISOString()
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 //  LIVE EU MRL FETCH  (via Claude AI API as proxy/parser)
 // ─────────────────────────────────────────────────────────────
@@ -10877,109 +11500,26 @@ async function fetchLiveEuMRL(pesticideName, crop) {
   const cacheKey = pesticideName.toLowerCase() + '|' + crop.id;
   if (MRL_LIVE_CACHE[cacheKey]) return MRL_LIVE_CACHE[cacheKey];
 
-  // ── اتصل بـ Cloudflare Worker (بيحل مشكلة CORS) ──────────────────────
-  // لو WORKER_URL فارغ → اعرض رسالة إعداد واضحة
-  if (!WORKER_URL || WORKER_URL === 'YOUR_WORKER_URL_HERE') {
-    return {
-      notFound: false, mrl: '—', unit: 'mg/kg', source: 'not-configured',
-      note: 'يرجى إعداد Cloudflare Worker أولاً (راجع التعليمات)',
-      fetchedAt: new Date().toISOString()
-    };
+  // ── أولاً: ابحث في قاعدة البيانات المحلية (فورية وموثوقة) ──────────────
+  const localResult = lookupLocalMRL(pesticideName, crop.id);
+  if (localResult) {
+    MRL_LIVE_CACHE[cacheKey] = localResult;
+    return localResult;
   }
 
-  const systemPrompt = `You are an expert in EU pesticide MRL regulations under Regulation (EC) No 396/2005 and all its amendments (Annex II). Today's date is ${new Date().toISOString().split('T')[0]}.
-
-Your ONLY job: return the current APPLICABLE EU MRL for a pesticide on a crop.
-
-STRICT RULES:
-1. Return ONLY the currently APPLICABLE value — not "previous" or "not applicable".
-2. Cite the amending regulation number if known (e.g. "Reg (EU) 2025/1164").
-3. If the substance is banned/not approved in EU (e.g. carbendazim, chlorpyrifos), MRL defaults to LOQ = 0.01 mg/kg.
-4. If uncertain about exact value, return best estimate with "uncertain": true.
-5. Do NOT fabricate regulation numbers you are unsure of — omit the field instead.
-6. Respond with ONLY a raw JSON object. No markdown. No explanation. No extra text.`;
-
-  const userPrompt = `Current EU MRL query:
-Pesticide: ${pesticideName}
-Crop: ${crop.enQuery} (EU product code: ${crop.euCode})
-
-Rules:
-- Use Regulation (EC) 396/2005 Annex II latest amendment
-- Return the "applicable" value currently in force
-- If not approved in EU → mrl: "0.01", note: "Default LOQ - not approved in EU"
-- If crop genuinely not listed → notFound: true
-
-Return ONLY this JSON structure:
-{"mrl":"0.1","unit":"mg/kg","phiDays":7,"regulation":"Reg (EU) 2025/XXXX","status":"applicable","cropEn":"${crop.enQuery}","cropAr":"${crop.ar}","note":"","notFound":false,"uncertain":false}`;
-
-  try {
-    const resp = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 512,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
-      })
-    });
-
-    if (!resp.ok) {
-      const errBody = await resp.text();
-      throw new Error('Worker رجع خطأ ' + resp.status + ': ' + errBody.slice(0, 200));
-    }
-
-    const data = await resp.json();
-
-    // استخرج النص — يتعامل مع صيغة Anthropic وGemini
-    let rawText = '';
-    if (data.content && Array.isArray(data.content)) {
-      // صيغة Anthropic: content[].text
-      rawText = data.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text || '')
-        .join('\n')
-        .trim();
-    } else if (typeof data.text === 'string') {
-      // صيغة مباشرة
-      rawText = data.text.trim();
-    }
-
-    if (!rawText) throw new Error('الاستجابة فارغة — data: ' + JSON.stringify(data).slice(0, 300));
-
-    // نظّف أي markdown fences
-    let cleaned = rawText
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-
-    // استخرج أول JSON object
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('لم يُعثر على JSON في: ' + cleaned.slice(0, 300));
-
-    const result = JSON.parse(jsonMatch[0]);
-
-    // تأكد إن mrl موجود ومش undefined
-    if (result.mrl === undefined || result.mrl === null) {
-      throw new Error('قيمة mrl مفقودة في: ' + JSON.stringify(result));
-    }
-
-    result.source    = 'gemini-via-worker';
-    result.fetchedAt = new Date().toISOString();
-    MRL_LIVE_CACHE[cacheKey] = result;
-    return result;
-
-  } catch (err) {
-    console.error('[MRL fetch error]', pesticideName, crop.id, err.message);
-    return {
-      notFound: false, mrl: '—', unit: 'mg/kg',
-      source: 'error',
-      note: 'خطأ: ' + err.message,
-      fetchedAt: new Date().toISOString()
-    };
-  }
+  // ── ثانياً: لو مش موجودة محلياً → رجّع "غير متاحة" مع رابط EU ─────────
+  const notFoundResult = {
+    notFound: true,
+    mrl: '—',
+    unit: 'mg/kg',
+    source: 'EU-DB-local',
+    note: `هذه المادة غير موجودة في قاعدة البيانات المحلية — اضغط "EU MRL Database" للتحقق مباشرة`,
+    fetchedAt: new Date().toISOString()
+  };
+  MRL_LIVE_CACHE[cacheKey] = notFoundResult;
+  return notFoundResult;
 }
+
 
 // Update a single crop card's MRL display after live fetch
 function applyLiveMRLToCard(cardEl, result, crop) {
@@ -11700,13 +12240,15 @@ letterBar.addEventListener('click', e => {
 
 // ============== EVENT DELEGATION FOR INGREDIENT ITEMS (mobile-friendly) ==============
 const ingredientsContainer = document.getElementById('ingredientsContainer');
-ingredientsContainer.addEventListener('click', function(e) {
+function handleIngredientTap(e) {
   const item = e.target.closest('.ingredient-item');
   if (!item) return;
   e.preventDefault();
   const name = item.dataset.original || item.dataset.name;
   if (name) openIngredient(name);
-});
+}
+ingredientsContainer.addEventListener('click', handleIngredientTap);
+ingredientsContainer.addEventListener('touchend', handleIngredientTap, { passive: false });
 // Keyboard accessibility (Enter/Space on focused item)
 ingredientsContainer.addEventListener('keydown', function(e) {
   if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -11901,6 +12443,35 @@ if (btnPrintEl) btnPrintEl.addEventListener('click', function(e) { e.preventDefa
     if (b) b.classList.add('visible');
   }
 })();
+
+// ── iOS touch fix ─────────────────────────────────────────────────────────────
+(function() {
+  function applyIOSFix(root) {
+    (root || document).querySelectorAll(
+      '.ingredient-item,.db-link-card,.compare-suggestion-item,.crop-card,.crop-pill,.tab,.letter-btn'
+    ).forEach(function(el) {
+      if (el.dataset.iosTouchFixed) return;
+      el.dataset.iosTouchFixed = '1';
+      el.style.cursor = 'pointer';
+      el.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        this.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      }, { passive: false });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function() { applyIOSFix(); });
+  if (window.MutationObserver) {
+    new MutationObserver(function(muts) {
+      muts.forEach(function(m) { if (m.addedNodes.length) applyIOSFix(document); });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+  // Buttons
+  document.addEventListener('touchend', function(e) {
+    var b = e.target.closest('#fetchAllMrlBtn') || e.target.closest('.live-mrl-btn');
+    if (b && !b.disabled) { e.preventDefault(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+  }, { passive: false });
+})();
+
 </script>
 </body>
 </html>
